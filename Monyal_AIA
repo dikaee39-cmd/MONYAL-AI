@@ -1,0 +1,2196 @@
+-- ==========================================
+-- KONFIGURASI MONYAL AI (DELTA EXECUTOR)
+-- ==========================================
+local CONFIG = {
+    API_KEY = "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",
+    MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free",
+    PREFIX = "!monyal ",
+    PUBLIC_PROMPT = "Kamu adalah MONYAL AI, bot lucu, receh, suka bercanda, dan santai di dalam game Roblox. Jawab langsung dengan teks polos tanpa emoji dan tanpa format markdown seperti bintang atau pagar. Maksimal 2 kalimat singkat.",
+    PRIVATE_PROMPT = "Kamu adalah MONYAL AI, asisten AI yang humoris, suka bercanda, dan cerdas di Roblox. Jawab pertanyaan dengan santai dan lucu menggunakan teks polos tanpa emoji dan tanpa simbol markdown.",
+    COOLDOWN = 4,
+    MAX_HISTORY = 8,
+    TEMPERATURE = 0.85,
+    ENABLED = true,
+    NO_PREFIX_MODE = false,
+    ALLOW_SELF = false,
+    AUTO_FOLLOW = false,
+    ORBIT_TARGET = false,
+    AUTO_JUMP = false,
+    AUTO_EMOTE = false,
+    ANTI_AFK = true,
+    WIN_WIDTH = 530,
+    WIN_HEIGHT = 325,
+    FLY_SPEED = 55
+}
+
+-- ==========================================
+-- SERVICES & EXECUTOR CHECK
+-- ==========================================
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
+if not httpRequest then
+    warn("[MONYAL AI] Executor tidak mendukung fungsi HTTP request!")
+    return
+end
+
+local guiParent = (gethui and gethui()) or CoreGui
+for _, name in ipairs({"MonyalAI_Landscape", "MonyalAI_GeneralPopup"}) do
+    if guiParent:FindFirstChild(name) then
+        guiParent:FindFirstChild(name):Destroy()
+    end
+end
+
+-- ==========================================
+-- TEMA APPLE / macOS DARK GLASS (NO EMOJI)
+-- ==========================================
+local THEME = {
+    Bg = Color3.fromRGB(20, 20, 24),
+    Sidebar = Color3.fromRGB(26, 26, 31),
+    Card = Color3.fromRGB(32, 32, 39),
+    Input = Color3.fromRGB(15, 15, 19),
+    Accent = Color3.fromRGB(10, 132, 255),
+    UserBubble = Color3.fromRGB(10, 132, 255),
+    BotBubble = Color3.fromRGB(40, 40, 48),
+    Text = Color3.fromRGB(245, 245, 247),
+    SubText = Color3.fromRGB(152, 152, 160),
+    Stroke = Color3.fromRGB(54, 54, 64),
+    Green = Color3.fromRGB(48, 209, 88),
+    Yellow = Color3.fromRGB(255, 214, 10),
+    Red = Color3.fromRGB(255, 69, 58)
+}
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MonyalAI_Landscape"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = guiParent
+
+-- ==========================================
+-- SPLASH SCREEN LOADING 15 DETIK (MODULE COMPILER)
+-- ==========================================
+local function playCompilerLoading15s()
+    local LoaderFrame = Instance.new("Frame")
+    LoaderFrame.Name = "AKStyleCompilerLoader"
+    LoaderFrame.Size = UDim2.new(0, 360, 0, 175)
+    LoaderFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    LoaderFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    LoaderFrame.BackgroundColor3 = THEME.Bg
+    LoaderFrame.BorderSizePixel = 0
+    LoaderFrame.Parent = ScreenGui
+
+    local LScale = Instance.new("UIScale")
+    LScale.Scale = 0.8
+    LScale.Parent = LoaderFrame
+
+    local LCorner = Instance.new("UICorner")
+    LCorner.CornerRadius = UDim.new(0, 16)
+    LCorner.Parent = LoaderFrame
+
+    local LStroke = Instance.new("UIStroke")
+    LStroke.Color = THEME.Stroke
+    LStroke.Thickness = 1.4
+    LStroke.Parent = LoaderFrame
+
+    local HeaderTag = Instance.new("TextLabel")
+    HeaderTag.Size = UDim2.new(1, -36, 0, 16)
+    HeaderTag.Position = UDim2.new(0, 18, 0, 14)
+    HeaderTag.BackgroundTransparency = 1
+    HeaderTag.Text = "MONYAL RUNTIME COMPILER v4.2"
+    HeaderTag.TextColor3 = THEME.Accent
+    HeaderTag.Font = Enum.Font.GothamBold
+    HeaderTag.TextSize = 10
+    HeaderTag.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderTag.Parent = LoaderFrame
+
+    local TimerLabel = Instance.new("TextLabel")
+    TimerLabel.Size = UDim2.new(0, 70, 0, 16)
+    TimerLabel.Position = UDim2.new(1, -88, 0, 14)
+    TimerLabel.BackgroundTransparency = 1
+    TimerLabel.Text = "0%"
+    TimerLabel.TextColor3 = THEME.Green
+    TimerLabel.Font = Enum.Font.GothamBold
+    TimerLabel.TextSize = 11
+    TimerLabel.TextXAlignment = Enum.TextXAlignment.Right
+    TimerLabel.Parent = LoaderFrame
+
+    local MainBrand = Instance.new("TextLabel")
+    MainBrand.Size = UDim2.new(1, -36, 0, 28)
+    MainBrand.Position = UDim2.new(0, 18, 0, 32)
+    MainBrand.BackgroundTransparency = 1
+    MainBrand.Text = "MONYAL AI"
+    MainBrand.TextColor3 = THEME.Text
+    MainBrand.Font = Enum.Font.GothamBlack
+    MainBrand.TextSize = 22
+    MainBrand.TextXAlignment = Enum.TextXAlignment.Left
+    MainBrand.Parent = LoaderFrame
+
+    -- Kotak Terminal Log Compile Modul
+    local ConsoleBox = Instance.new("Frame")
+    ConsoleBox.Size = UDim2.new(1, -36, 0, 56)
+    ConsoleBox.Position = UDim2.new(0, 18, 0, 66)
+    ConsoleBox.BackgroundColor3 = THEME.Input
+    ConsoleBox.BorderSizePixel = 0
+    ConsoleBox.Parent = LoaderFrame
+
+    local CCorner = Instance.new("UICorner")
+    CCorner.CornerRadius = UDim.new(0, 8)
+    CCorner.Parent = ConsoleBox
+
+    local LogLine1 = Instance.new("TextLabel")
+    LogLine1.Size = UDim2.new(1, -16, 0, 16)
+    LogLine1.Position = UDim2.new(0, 8, 0, 6)
+    LogLine1.BackgroundTransparency = 1
+    LogLine1.Text = "> Allocating memory heap [0x004F8A]..."
+    LogLine1.TextColor3 = THEME.SubText
+    LogLine1.Font = Enum.Font.Code
+    LogLine1.TextSize = 10
+    LogLine1.TextXAlignment = Enum.TextXAlignment.Left
+    LogLine1.TextTruncate = Enum.TextTruncate.AtEnd
+    LogLine1.Parent = ConsoleBox
+
+    local LogLine2 = Instance.new("TextLabel")
+    LogLine2.Size = UDim2.new(1, -16, 0, 16)
+    LogLine2.Position = UDim2.new(0, 8, 0, 22)
+    LogLine2.BackgroundTransparency = 1
+    LogLine2.Text = "> Verifying Luau environment hooks..."
+    LogLine2.TextColor3 = THEME.Text
+    LogLine2.Font = Enum.Font.Code
+    LogLine2.TextSize = 10
+    LogLine2.TextXAlignment = Enum.TextXAlignment.Left
+    LogLine2.TextTruncate = Enum.TextTruncate.AtEnd
+    LogLine2.Parent = ConsoleBox
+
+    local LogLine3 = Instance.new("TextLabel")
+    LogLine3.Size = UDim2.new(1, -16, 0, 14)
+    LogLine3.Position = UDim2.new(0, 8, 0, 38)
+    LogLine3.BackgroundTransparency = 1
+    LogLine3.Text = "Module: 0 / 18 compiled"
+    LogLine3.TextColor3 = THEME.Accent
+    LogLine3.Font = Enum.Font.Code
+    LogLine3.TextSize = 9
+    LogLine3.TextXAlignment = Enum.TextXAlignment.Left
+    LogLine3.Parent = ConsoleBox
+
+    -- Progress Bar
+    local BarTrack = Instance.new("Frame")
+    BarTrack.Size = UDim2.new(1, -36, 0, 7)
+    BarTrack.Position = UDim2.new(0, 18, 0, 134)
+    BarTrack.BackgroundColor3 = THEME.Input
+    BarTrack.BorderSizePixel = 0
+    BarTrack.Parent = LoaderFrame
+
+    local TrackCorner = Instance.new("UICorner")
+    TrackCorner.CornerRadius = UDim.new(1, 0)
+    TrackCorner.Parent = BarTrack
+
+    local BarFill = Instance.new("Frame")
+    BarFill.Size = UDim2.new(0, 0, 1, 0)
+    BarFill.BackgroundColor3 = THEME.Accent
+    BarFill.BorderSizePixel = 0
+    BarFill.Parent = BarTrack
+
+    local FillCorner = Instance.new("UICorner")
+    FillCorner.CornerRadius = UDim.new(1, 0)
+    FillCorner.Parent = BarFill
+
+    local BottomNote = Instance.new("TextLabel")
+    BottomNote.Size = UDim2.new(1, -36, 0, 14)
+    BottomNote.Position = UDim2.new(0, 18, 0, 148)
+    BottomNote.BackgroundTransparency = 1
+    BottomNote.Text = "Please wait while modules are being compiled..."
+    BottomNote.TextColor3 = THEME.SubText
+    BottomNote.Font = Enum.Font.Gotham
+    BottomNote.TextSize = 9
+    BottomNote.TextXAlignment = Enum.TextXAlignment.Left
+    BottomNote.Parent = LoaderFrame
+
+    TweenService:Create(LScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+
+    local modulesList = {
+        "core/kernel_bridge.luau",
+        "net/http_executor_proxy.luau",
+        "ai/openrouter_stream_client.luau",
+        "ai/comedy_persona_weights.bin",
+        "ai/markdown_sanitizer.luau",
+        "ui/macos_compositor_engine.luau",
+        "ui/squircle_renderer.luau",
+        "ui/floating_island_manager.luau",
+        "gfx/lighting_shader_pipeline.luau",
+        "gfx/bloom_color_matrix.luau",
+        "phys/cframe_handhold_solver.luau",
+        "phys/body_gyro_flight_controller.luau",
+        "phys/noclip_ghost_filter.luau",
+        "chat/textchat_service_hook.luau",
+        "chat/legacy_say_message_fallback.luau",
+        "sec/anti_afk_virtual_input.luau",
+        "sys/memory_garbage_collector.luau",
+        "sys/final_integrity_checksum.sha256"
+    }
+
+    local totalDuration = 15.0
+    local startTime = tick()
+    local totalModules = #modulesList
+
+    while true do
+        local elapsed = tick() - startTime
+        local progress = math.clamp(elapsed / totalDuration, 0, 1)
+        local pctInt = math.floor(progress * 100)
+        local modIndex = math.clamp(math.floor(progress * totalModules) + 1, 1, totalModules)
+
+        TimerLabel.Text = pctInt .. "%"
+        BarFill.Size = UDim2.new(progress, 0, 1, 0)
+        LogLine3.Text = string.format("Compiling module [%d/%d] | Elapsed: %.1fs / 15.0s", modIndex, totalModules, math.min(elapsed, 15.0))
+
+        local prevMod = modulesList[math.max(1, modIndex - 1)]
+        local currMod = modulesList[modIndex]
+        LogLine1.Text = "> [OK] Compiled " .. prevMod
+        LogLine2.Text = "> Building " .. currMod .. " ..."
+
+        if progress >= 1 then
+            LogLine1.Text = "> [OK] All 18 modules compiled successfully."
+            LogLine2.Text = "> Launching MONYAL AI Workspace..."
+            TimerLabel.Text = "100%"
+            BarFill.BackgroundColor3 = THEME.Green
+            task.wait(0.45)
+            break
+        end
+        task.wait(0.06)
+    end
+
+    local closeLoader = TweenService:Create(LScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0.01})
+    closeLoader:Play()
+    closeLoader.Completed:Wait()
+    LoaderFrame:Destroy()
+end
+
+playCompilerLoading15s()
+
+-- ==========================================
+-- HELPER DRAG (TOUCH & MOUSE)
+-- ==========================================
+local function makeDraggable(dragHandle, targetFrame, onClickCallback)
+    local dragging = false
+    local dragInput, dragStart, startPos
+    local movedDistance = 0
+
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = targetFrame.Position
+            movedDistance = 0
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if movedDistance < 6 and onClickCallback then
+                        onClickCallback()
+                    end
+                end
+            end)
+        end
+    end)
+
+    dragHandle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            movedDistance = delta.Magnitude
+            targetFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- ==========================================
+-- STATE & LOGIKA GENERAL (GANDENG TANGAN, FLY, GHOST)
+-- ==========================================
+local GENERAL_STATE = {
+    SelectedTarget = nil,
+    HoldHands = false,
+    Piggyback = false,
+    Flying = false,
+    GhostMode = false
+}
+
+local function setStatus(msg, color)
+    -- Diupdate nanti setelah StatusText dibuat
+end
+
+-- Fungsi Fly / Terbang (Support Analog Mobile & Keyboard PC)
+local flyBodyGyro, flyBodyVel
+local function toggleFlyMode(enable)
+    GENERAL_STATE.Flying = enable
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+    if enable and root and hum then
+        hum.PlatformStand = true
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.P = 9e4
+        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyGyro.CFrame = root.CFrame
+        flyBodyGyro.Parent = root
+
+        flyBodyVel = Instance.new("BodyVelocity")
+        flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVel.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyVel.Parent = root
+    else
+        if flyBodyGyro then flyBodyGyro:Destroy() flyBodyGyro = nil end
+        if flyBodyVel then flyBodyVel:Destroy() flyBodyVel = nil end
+        if hum then hum.PlatformStand = false end
+    end
+end
+
+-- Fungsi Ghost Mode (Transparan + Noclip)
+local function applyGhostVisuals(enable)
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Transparency = enable and 0.65 or 0
+        elseif part:IsA("Decal") then
+            part.Transparency = enable and 0.65 or 0
+        end
+    end
+end
+
+-- Loop Fisika Real-Time: Gandeng Tangan, Piggyback, Fly, dan Ghost Noclip
+RunService.Heartbeat:Connect(function()
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
+    if not myRoot or not myHum then return end
+
+    -- 1. Ghost Noclip
+    if GENERAL_STATE.GhostMode then
+        for _, part in ipairs(myChar:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+
+    -- 2. Fly Movement (Mengikuti arah pandang kamera & MoveDirection analog HP/PC)
+    if GENERAL_STATE.Flying and flyBodyGyro and flyBodyVel then
+        local cam = workspace.CurrentCamera
+        flyBodyGyro.CFrame = cam.CFrame
+        local moveDir = myHum.MoveDirection
+        if moveDir.Magnitude > 0 then
+            -- Konversi input arah gerak relatif terhadap kamera (termasuk naik/turun saat kamera mendongak/menunduk)
+            local camForward = cam.CFrame.LookVector
+            local camRight = cam.CFrame.RightVector
+            local flatForward = Vector3.new(camForward.X, 0, camForward.Z).Unit
+            local flatRight = Vector3.new(camRight.X, 0, camRight.Z).Unit
+
+            local forwardAmount = moveDir:Dot(flatForward)
+            local rightAmount = moveDir:Dot(flatRight)
+            local flyDirection = (camForward * forwardAmount) + (camRight * rightAmount)
+
+            if flyDirection.Magnitude > 0 then
+                flyBodyVel.Velocity = flyDirection.Unit * CONFIG.FLY_SPEED
+            else
+                flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+            end
+        else
+            flyBodyVel.Velocity = Vector3.new(0, 0, 0)
+        end
+    end
+
+    -- 3. Gandeng Tangan / Piggyback dengan Target Player
+    local target = GENERAL_STATE.SelectedTarget
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        local targetRoot = target.Character.HumanoidRootPart
+        if GENERAL_STATE.HoldHands then
+            -- Posisikan tepat di sisi kanan target seolah bergandengan tangan (termasuk saat terbang)
+            myRoot.CFrame = targetRoot.CFrame * CFrame.new(2.1, 0, 0)
+            myRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            -- Pose tangan kiri terangkat mendekati tangan kanan target (R6/R15)
+            local leftShoulder = myChar:FindFirstChild("LeftUpperArm") and myChar.LeftUpperArm:FindFirstChild("LeftShoulder")
+                or (myChar:FindFirstChild("Torso") and myChar.Torso:FindFirstChild("Left Shoulder"))
+            if leftShoulder then
+                leftShoulder.C0 = leftShoulder.C0:Lerp(CFrame.new(-1, 0.5, 0) * CFrame.Angles(math.rad(35), 0, math.rad(-25)), 0.3)
+            end
+        elseif GENERAL_STATE.Piggyback then
+            -- Gendong / menempel di punggung target
+            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0.6, 1.1)
+            myRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
+    end
+end)
+
+-- ==========================================
+-- JENDELA POPUP KHUSUS MENU GENERAL
+-- ==========================================
+local GeneralPopup = Instance.new("Frame")
+GeneralPopup.Name = "GeneralPopup"
+GeneralPopup.Size = UDim2.new(0, 290, 0, 340)
+GeneralPopup.AnchorPoint = Vector2.new(0.5, 0.5)
+GeneralPopup.Position = UDim2.new(0.5, 0, 0.5, 0)
+GeneralPopup.BackgroundColor3 = THEME.Bg
+GeneralPopup.BorderSizePixel = 0
+GeneralPopup.Visible = false
+GeneralPopup.ZIndex = 20
+GeneralPopup.Parent = ScreenGui
+
+local PopScale = Instance.new("UIScale")
+PopScale.Scale = 0.01
+PopScale.Parent = GeneralPopup
+
+local PopCorner = Instance.new("UICorner")
+PopCorner.CornerRadius = UDim.new(0, 16)
+PopCorner.Parent = GeneralPopup
+
+local PopStroke = Instance.new("UIStroke")
+PopStroke.Color = THEME.Accent
+PopStroke.Thickness = 1.4
+PopStroke.Parent = GeneralPopup
+
+local PopHeader = Instance.new("Frame")
+PopHeader.Size = UDim2.new(1, 0, 0, 38)
+PopHeader.BackgroundColor3 = THEME.Sidebar
+PopHeader.BorderSizePixel = 0
+PopHeader.Parent = GeneralPopup
+
+local PopHeaderCorner = Instance.new("UICorner")
+PopHeaderCorner.CornerRadius = UDim.new(0, 16)
+PopHeaderCorner.Parent = PopHeader
+
+local PopHeaderFix = Instance.new("Frame")
+PopHeaderFix.Size = UDim2.new(1, 0, 0, 12)
+PopHeaderFix.Position = UDim2.new(0, 0, 1, -12)
+PopHeaderFix.BackgroundColor3 = THEME.Sidebar
+PopHeaderFix.BorderSizePixel = 0
+PopHeaderFix.Parent = PopHeader
+
+local PopTitle = Instance.new("TextLabel")
+PopTitle.Size = UDim2.new(1, -60, 1, 0)
+PopTitle.Position = UDim2.new(0, 14, 0, 0)
+PopTitle.BackgroundTransparency = 1
+PopTitle.Text = "GENERAL & INTERAKSI AVATAR"
+PopTitle.TextColor3 = THEME.Text
+PopTitle.Font = Enum.Font.GothamBold
+PopTitle.TextSize = 11
+PopTitle.TextXAlignment = Enum.TextXAlignment.Left
+PopTitle.Parent = PopHeader
+
+local PopCloseBtn = Instance.new("TextButton")
+PopCloseBtn.Size = UDim2.new(0, 24, 0, 24)
+PopCloseBtn.Position = UDim2.new(1, -32, 0.5, -12)
+PopCloseBtn.BackgroundColor3 = THEME.Red
+PopCloseBtn.Text = "X"
+PopCloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+PopCloseBtn.Font = Enum.Font.GothamBold
+PopCloseBtn.TextSize = 11
+PopCloseBtn.Parent = PopHeader
+
+local PopCloseCorner = Instance.new("UICorner")
+PopCloseCorner.CornerRadius = UDim.new(1, 0)
+PopCloseCorner.Parent = PopCloseBtn
+
+local function toggleGeneralPopup(show)
+    if show then
+        GeneralPopup.Visible = true
+        PopScale.Scale = 0.7
+        TweenService:Create(PopScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    else
+        local t = TweenService:Create(PopScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0.01})
+        t:Play()
+        t.Completed:Connect(function()
+            GeneralPopup.Visible = false
+        end)
+    end
+end
+
+PopCloseBtn.MouseButton1Click:Connect(function()
+    toggleGeneralPopup(false)
+end)
+makeDraggable(PopHeader, GeneralPopup, nil)
+
+-- Konten di dalam Popup General
+local PopScroll = Instance.new("ScrollingFrame")
+PopScroll.Size = UDim2.new(1, -20, 1, -46)
+PopScroll.Position = UDim2.new(0, 10, 0, 42)
+PopScroll.BackgroundTransparency = 1
+PopScroll.BorderSizePixel = 0
+PopScroll.ScrollBarThickness = 2
+PopScroll.ScrollBarImageColor3 = THEME.Accent
+PopScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+PopScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+PopScroll.Parent = GeneralPopup
+
+local PopList = Instance.new("UIListLayout")
+PopList.Padding = UDim.new(0, 7)
+PopList.SortOrder = Enum.SortOrder.LayoutOrder
+PopList.Parent = PopScroll
+
+-- Pemilih Target Player di Popup General
+local TargetStatusCard = Instance.new("Frame")
+TargetStatusCard.Size = UDim2.new(1, 0, 0, 34)
+TargetStatusCard.BackgroundColor3 = THEME.Card
+TargetStatusCard.BorderSizePixel = 0
+TargetStatusCard.LayoutOrder = 1
+TargetStatusCard.Parent = PopScroll
+
+local TSCorner = Instance.new("UICorner")
+TSCorner.CornerRadius = UDim.new(0, 9)
+TSCorner.Parent = TargetStatusCard
+
+local SelectedTargetLabel = Instance.new("TextLabel")
+SelectedTargetLabel.Size = UDim2.new(1, -76, 1, 0)
+SelectedTargetLabel.Position = UDim2.new(0, 10, 0, 0)
+SelectedTargetLabel.BackgroundTransparency = 1
+SelectedTargetLabel.Text = "Target: Belum dipilih"
+SelectedTargetLabel.TextColor3 = THEME.Accent
+SelectedTargetLabel.Font = Enum.Font.GothamBold
+SelectedTargetLabel.TextSize = 11
+SelectedTargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+SelectedTargetLabel.TextTruncate = Enum.TextTruncate.AtEnd
+SelectedTargetLabel.Parent = TargetStatusCard
+
+local RefreshPlayersBtn = Instance.new("TextButton")
+RefreshPlayersBtn.Size = UDim2.new(0, 58, 0, 22)
+RefreshPlayersBtn.Position = UDim2.new(1, -64, 0.5, -11)
+RefreshPlayersBtn.BackgroundColor3 = THEME.Input
+RefreshPlayersBtn.Text = "Refresh"
+RefreshPlayersBtn.TextColor3 = THEME.Text
+RefreshPlayersBtn.Font = Enum.Font.GothamBold
+RefreshPlayersBtn.TextSize = 9
+RefreshPlayersBtn.Parent = TargetStatusCard
+
+local RefCorner = Instance.new("UICorner")
+RefCorner.CornerRadius = UDim.new(0, 6)
+RefCorner.Parent = RefreshPlayersBtn
+
+-- Daftar Pemain (Horizontal Chip Selector)
+local PlayerListScroll = Instance.new("ScrollingFrame")
+PlayerListScroll.Size = UDim2.new(1, 0, 0, 28)
+PlayerListScroll.BackgroundColor3 = THEME.Input
+PlayerListScroll.BorderSizePixel = 0
+PlayerListScroll.ScrollBarThickness = 2
+PlayerListScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerListScroll.LayoutOrder = 2
+PlayerListScroll.Parent = PopScroll
+
+local PLCorner = Instance.new("UICorner")
+PLCorner.CornerRadius = UDim.new(0, 8)
+PLCorner.Parent = PlayerListScroll
+
+local PLPad = Instance.new("UIPadding")
+PLPad.PaddingLeft = UDim.new(0, 4)
+PLPad.PaddingRight = UDim.new(0, 4)
+PLPad.PaddingTop = UDim.new(0, 3)
+PLPad.PaddingBottom = UDim.new(0, 3)
+PLPad.Parent = PlayerListScroll
+
+local PLLayout = Instance.new("UIListLayout")
+PLLayout.FillDirection = Enum.FillDirection.Horizontal
+PLLayout.Padding = UDim.new(0, 5)
+PLLayout.Parent = PlayerListScroll
+
+local function populatePlayerChips()
+    for _, child in ipairs(PlayerListScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local PBtn = Instance.new("TextButton")
+            PBtn.Size = UDim2.new(0, 95, 1, 0)
+            PBtn.BackgroundColor3 = (GENERAL_STATE.SelectedTarget == plr) and THEME.Accent or THEME.Card
+            PBtn.Text = plr.DisplayName
+            PBtn.TextColor3 = THEME.Text
+            PBtn.Font = Enum.Font.GothamSemibold
+            PBtn.TextSize = 10
+            PBtn.TextTruncate = Enum.TextTruncate.AtEnd
+            PBtn.Parent = PlayerListScroll
+
+            local PCorner = Instance.new("UICorner")
+            PCorner.CornerRadius = UDim.new(0, 6)
+            PCorner.Parent = PBtn
+
+            PBtn.MouseButton1Click:Connect(function()
+                GENERAL_STATE.SelectedTarget = plr
+                SelectedTargetLabel.Text = "Target: " .. plr.DisplayName
+                populatePlayerChips()
+            end)
+        end
+    end
+end
+
+RefreshPlayersBtn.MouseButton1Click:Connect(populatePlayerChips)
+Players.PlayerAdded:Connect(populatePlayerChips)
+Players.PlayerRemoving:Connect(function(plr)
+    if GENERAL_STATE.SelectedTarget == plr then
+        GENERAL_STATE.SelectedTarget = nil
+        GENERAL_STATE.HoldHands = false
+        GENERAL_STATE.Piggyback = false
+        SelectedTargetLabel.Text = "Target: Keluar server"
+    end
+    populatePlayerChips()
+end)
+populatePlayerChips()
+
+-- Helper Toggle & Input Khusus Popup General
+local function addPopToggle(title, desc, order, callback)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(1, 0, 0, 40)
+    Card.BackgroundColor3 = THEME.Card
+    Card.BorderSizePixel = 0
+    Card.LayoutOrder = order
+    Card.Parent = PopScroll
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 9)
+    Corner.Parent = Card
+
+    local TLabel = Instance.new("TextLabel")
+    TLabel.Size = UDim2.new(1, -56, 0, 16)
+    TLabel.Position = UDim2.new(0, 10, 0, 4)
+    TLabel.BackgroundTransparency = 1
+    TLabel.Text = title
+    TLabel.TextColor3 = THEME.Text
+    TLabel.Font = Enum.Font.GothamSemibold
+    TLabel.TextSize = 11
+    TLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TLabel.Parent = Card
+
+    local DLabel = Instance.new("TextLabel")
+    DLabel.Size = UDim2.new(1, -56, 0, 13)
+    DLabel.Position = UDim2.new(0, 10, 0, 21)
+    DLabel.BackgroundTransparency = 1
+    DLabel.Text = desc
+    DLabel.TextColor3 = THEME.SubText
+    DLabel.Font = Enum.Font.Gotham
+    DLabel.TextSize = 9
+    DLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DLabel.Parent = Card
+
+    local Switch = Instance.new("TextButton")
+    Switch.Size = UDim2.new(0, 36, 0, 20)
+    Switch.Position = UDim2.new(1, -46, 0.5, -10)
+    Switch.BackgroundColor3 = THEME.Input
+    Switch.Text = ""
+    Switch.AutoButtonColor = false
+    Switch.Parent = Card
+
+    local SCorner = Instance.new("UICorner")
+    SCorner.CornerRadius = UDim.new(1, 0)
+    SCorner.Parent = Switch
+
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.new(0, 14, 0, 14)
+    Knob.Position = UDim2.new(0, 3, 0.5, -7)
+    Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.BorderSizePixel = 0
+    Knob.Parent = Switch
+
+    local KCorner = Instance.new("UICorner")
+    KCorner.CornerRadius = UDim.new(1, 0)
+    KCorner.Parent = Knob
+
+    local state = false
+    Switch.MouseButton1Click:Connect(function()
+        state = not state
+        TweenService:Create(Switch, TweenInfo.new(0.18), {
+            BackgroundColor3 = state and THEME.Green or THEME.Input
+        }):Play()
+        TweenService:Create(Knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+            Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+        }):Play()
+        callback(state)
+    end)
+end
+
+addPopToggle("Gandeng Tangan Target", "Menempel di samping tangan & ikut terbang", 3, function(val)
+    if val and not GENERAL_STATE.SelectedTarget then
+        SelectedTargetLabel.Text = "Pilih nama player dulu di atas!"
+        SelectedTargetLabel.TextColor3 = THEME.Red
+        return
+    end
+    SelectedTargetLabel.TextColor3 = THEME.Accent
+    GENERAL_STATE.HoldHands = val
+    if val then GENERAL_STATE.Piggyback = false end
+end)
+
+addPopToggle("Gendong / Piggyback Target", "Menempel di punggung target player", 4, function(val)
+    if val and not GENERAL_STATE.SelectedTarget then
+        SelectedTargetLabel.Text = "Pilih nama player dulu di atas!"
+        SelectedTargetLabel.TextColor3 = THEME.Red
+        return
+    end
+    SelectedTargetLabel.TextColor3 = THEME.Accent
+    GENERAL_STATE.Piggyback = val
+    if val then GENERAL_STATE.HoldHands = false end
+end)
+
+addPopToggle("Fly / Terbang Bebas", "Terbang ke arah kamera (bisa sambil gandengan)", 5, function(val)
+    toggleFlyMode(val)
+end)
+
+addPopToggle("Ghost Mode (Tembus Tembok)", "Karakter transparan & noclip tembus objek", 6, function(val)
+    GENERAL_STATE.GhostMode = val
+    applyGhostVisuals(val)
+end)
+
+-- Teleport Sekali Klik ke Target
+local TpBtn = Instance.new("TextButton")
+TpBtn.Size = UDim2.new(1, 0, 0, 30)
+TpBtn.BackgroundColor3 = THEME.Accent
+TpBtn.Text = "Teleport ke Target Sekarang"
+TpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TpBtn.Font = Enum.Font.GothamBold
+TpBtn.TextSize = 11
+TpBtn.LayoutOrder = 7
+TpBtn.Parent = PopScroll
+
+local TpCorner = Instance.new("UICorner")
+TpCorner.CornerRadius = UDim.new(0, 8)
+TpCorner.Parent = TpBtn
+
+TpBtn.MouseButton1Click:Connect(function()
+    local target = GENERAL_STATE.SelectedTarget
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(2.5, 0, 0)
+    else
+        SelectedTargetLabel.Text = "Pilih target yang valid dulu!"
+        SelectedTargetLabel.TextColor3 = THEME.Red
+    end
+end)
+
+-- Pengaturan Kecepatan Terbang & Jalan di Popup General
+local SpeedCard = Instance.new("Frame")
+SpeedCard.Size = UDim2.new(1, 0, 0, 44)
+SpeedCard.BackgroundColor3 = THEME.Card
+SpeedCard.BorderSizePixel = 0
+SpeedCard.LayoutOrder = 8
+SpeedCard.Parent = PopScroll
+
+local SpCorner = Instance.new("UICorner")
+SpCorner.CornerRadius = UDim.new(0, 9)
+SpCorner.Parent = SpeedCard
+
+local SpLabel = Instance.new("TextLabel")
+SpLabel.Size = UDim2.new(1, -20, 0, 14)
+SpLabel.Position = UDim2.new(0, 10, 0, 4)
+SpLabel.BackgroundTransparency = 1
+SpLabel.Text = "Kecepatan Fly / WalkSpeed (Angka)"
+SpLabel.TextColor3 = THEME.SubText
+SpLabel.Font = Enum.Font.GothamSemibold
+SpLabel.TextSize = 9
+SpLabel.TextXAlignment = Enum.TextXAlignment.Left
+SpLabel.Parent = SpeedCard
+
+local FlySpeedBox = Instance.new("TextBox")
+FlySpeedBox.Size = UDim2.new(0.48, -10, 0, 20)
+FlySpeedBox.Position = UDim2.new(0, 10, 0, 20)
+FlySpeedBox.BackgroundColor3 = THEME.Input
+FlySpeedBox.Text = tostring(CONFIG.FLY_SPEED)
+FlySpeedBox.PlaceholderText = "Fly Speed"
+FlySpeedBox.TextColor3 = THEME.Text
+FlySpeedBox.Font = Enum.Font.Gotham
+FlySpeedBox.TextSize = 10
+FlySpeedBox.Parent = SpeedCard
+
+local FSCorner = Instance.new("UICorner")
+FSCorner.CornerRadius = UDim.new(0, 6)
+FSCorner.Parent = FlySpeedBox
+
+FlySpeedBox.FocusLost:Connect(function()
+    local n = tonumber(FlySpeedBox.Text)
+    if n and n >= 10 then CONFIG.FLY_SPEED = n end
+end)
+
+local WalkSpeedBox = Instance.new("TextBox")
+WalkSpeedBox.Size = UDim2.new(0.48, -10, 0, 20)
+WalkSpeedBox.Position = UDim2.new(0.52, 0, 0, 20)
+WalkSpeedBox.BackgroundColor3 = THEME.Input
+WalkSpeedBox.Text = "16"
+WalkSpeedBox.PlaceholderText = "WalkSpeed"
+WalkSpeedBox.TextColor3 = THEME.Text
+WalkSpeedBox.Font = Enum.Font.Gotham
+WalkSpeedBox.TextSize = 10
+WalkSpeedBox.Parent = SpeedCard
+
+local WSCorner = Instance.new("UICorner")
+WSCorner.CornerRadius = UDim.new(0, 6)
+WSCorner.Parent = WalkSpeedBox
+
+WalkSpeedBox.FocusLost:Connect(function()
+    local n = tonumber(WalkSpeedBox.Text)
+    if n and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = n
+    end
+end)
+
+-- ==========================================
+-- MAIN WINDOW (LANDSCAPE / MELEBAR KE SAMPING)
+-- ==========================================
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, CONFIG.WIN_WIDTH, 0, CONFIG.WIN_HEIGHT)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.BackgroundColor3 = THEME.Bg
+MainFrame.BackgroundTransparency = 0.03
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local MainScale = Instance.new("UIScale")
+MainScale.Scale = 0.01
+MainScale.Parent = MainFrame
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = THEME.Stroke
+MainStroke.Thickness = 1.2
+MainStroke.Transparency = 0.2
+MainStroke.Parent = MainFrame
+
+-- SIDEBAR KIRI
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 134, 1, 0)
+Sidebar.BackgroundColor3 = THEME.Sidebar
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+
+local SideDivider = Instance.new("Frame")
+SideDivider.Size = UDim2.new(0, 1, 1, 0)
+SideDivider.Position = UDim2.new(1, -1, 0, 0)
+SideDivider.BackgroundColor3 = THEME.Stroke
+SideDivider.BackgroundTransparency = 0.35
+SideDivider.BorderSizePixel = 0
+SideDivider.Parent = Sidebar
+
+local function createTrafficLight(color, posX, onClick)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0, 13, 0, 13)
+    Btn.Position = UDim2.new(0, posX, 0, 13)
+    Btn.BackgroundColor3 = color
+    Btn.Text = ""
+    Btn.AutoButtonColor = false
+    Btn.Parent = Sidebar
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(1, 0)
+    Corner.Parent = Btn
+
+    local Hit = Instance.new("TextButton")
+    Hit.Size = UDim2.new(0, 20, 0, 24)
+    Hit.Position = UDim2.new(0.5, -10, 0.5, -12)
+    Hit.BackgroundTransparency = 1
+    Hit.Text = ""
+    Hit.Parent = Btn
+
+    Hit.MouseButton1Click:Connect(onClick)
+    return Btn
+end
+
+local BrandTitle = Instance.new("TextLabel")
+BrandTitle.Size = UDim2.new(1, -24, 0, 18)
+BrandTitle.Position = UDim2.new(0, 14, 0, 34)
+BrandTitle.BackgroundTransparency = 1
+BrandTitle.Text = "MONYAL AI"
+BrandTitle.TextColor3 = THEME.Text
+BrandTitle.Font = Enum.Font.GothamBlack
+BrandTitle.TextSize = 14
+BrandTitle.TextXAlignment = Enum.TextXAlignment.Left
+BrandTitle.Parent = Sidebar
+
+local BrandSub = Instance.new("TextLabel")
+BrandSub.Size = UDim2.new(1, -24, 0, 13)
+BrandSub.Position = UDim2.new(0, 14, 0, 51)
+BrandSub.BackgroundTransparency = 1
+BrandSub.Text = "Workspace & Bot"
+BrandSub.TextColor3 = THEME.SubText
+BrandSub.Font = Enum.Font.Gotham
+BrandSub.TextSize = 9
+BrandSub.TextXAlignment = Enum.TextXAlignment.Left
+BrandSub.Parent = Sidebar
+
+-- Container Menu Sidebar (Scrollable agar 6 menu muat rapi di segala ukuran)
+local NavContainer = Instance.new("ScrollingFrame")
+NavContainer.Size = UDim2.new(1, -14, 1, -104)
+NavContainer.Position = UDim2.new(0, 7, 0, 70)
+NavContainer.BackgroundTransparency = 1
+NavContainer.BorderSizePixel = 0
+NavContainer.ScrollBarThickness = 0
+NavContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+NavContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+NavContainer.Parent = Sidebar
+
+local NavList = Instance.new("UIListLayout")
+NavList.Padding = UDim.new(0, 3)
+NavList.SortOrder = Enum.SortOrder.LayoutOrder
+NavList.Parent = NavContainer
+
+-- Status Pill di Bawah Sidebar
+local StatusBox = Instance.new("Frame")
+StatusBox.Size = UDim2.new(1, -16, 0, 22)
+StatusBox.Position = UDim2.new(0, 8, 1, -28)
+StatusBox.BackgroundColor3 = THEME.Input
+StatusBox.BorderSizePixel = 0
+StatusBox.Parent = Sidebar
+
+local SBoxCorner = Instance.new("UICorner")
+SBoxCorner.CornerRadius = UDim.new(0, 7)
+SBoxCorner.Parent = StatusBox
+
+local StatusDot = Instance.new("Frame")
+StatusDot.Size = UDim2.new(0, 7, 0, 7)
+StatusDot.Position = UDim2.new(0, 8, 0.5, -3.5)
+StatusDot.BackgroundColor3 = THEME.Green
+StatusDot.BorderSizePixel = 0
+StatusDot.Parent = StatusBox
+
+local SDotCorner = Instance.new("UICorner")
+SDotCorner.CornerRadius = UDim.new(1, 0)
+SDotCorner.Parent = StatusDot
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, -20, 1, 0)
+StatusText.Position = UDim2.new(0, 19, 0, 0)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "Siap"
+StatusText.TextColor3 = THEME.SubText
+StatusText.Font = Enum.Font.GothamMedium
+StatusText.TextSize = 9
+StatusText.TextXAlignment = Enum.TextXAlignment.Left
+StatusText.TextTruncate = Enum.TextTruncate.AtEnd
+StatusText.Parent = StatusBox
+
+setStatus = function(msg, color)
+    StatusText.Text = msg
+    StatusText.TextColor3 = color or THEME.SubText
+end
+
+-- ==========================================
+-- AREA KANAN (HEADER & CONTENT CANVASES)
+-- ==========================================
+local RightArea = Instance.new("Frame")
+RightArea.Size = UDim2.new(1, -134, 1, 0)
+RightArea.Position = UDim2.new(0, 134, 0, 0)
+RightArea.BackgroundTransparency = 1
+RightArea.Parent = MainFrame
+
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 34)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = RightArea
+
+local TopDivider = Instance.new("Frame")
+TopDivider.Size = UDim2.new(1, 0, 0, 1)
+TopDivider.Position = UDim2.new(0, 0, 1, -1)
+TopDivider.BackgroundColor3 = THEME.Stroke
+TopDivider.BackgroundTransparency = 0.4
+TopDivider.BorderSizePixel = 0
+TopDivider.Parent = TopBar
+
+local PageTitle = Instance.new("TextLabel")
+PageTitle.Size = UDim2.new(1, -24, 1, 0)
+PageTitle.Position = UDim2.new(0, 14, 0, 0)
+PageTitle.BackgroundTransparency = 1
+PageTitle.Text = "Tanya Jawab Monyal AI"
+PageTitle.TextColor3 = THEME.Text
+PageTitle.Font = Enum.Font.GothamBold
+PageTitle.TextSize = 12
+PageTitle.TextXAlignment = Enum.TextXAlignment.Left
+PageTitle.Parent = TopBar
+
+-- MENU SIDEBAR: General (Membuka Popup) + 5 Tab Canvas
+local tabConfigs = {
+    {name = "Chat AI", title = "Tanya Jawab Monyal AI"},
+    {name = "Bot Server", title = "Pengaturan Bot Chat Publik"},
+    {name = "Shader Map", title = "Shader & Visual Workspace"},
+    {name = "Aksi Bot", title = "Perilaku Otomatis Bot"},
+    {name = "Tampilan", title = "Ukuran Window & API Sistem"}
+}
+
+local navButtons = {}
+local canvases = {}
+
+local ChatCanvas = Instance.new("Frame")
+ChatCanvas.Size = UDim2.new(1, -20, 1, -42)
+ChatCanvas.Position = UDim2.new(0, 10, 0, 38)
+ChatCanvas.BackgroundTransparency = 1
+ChatCanvas.Visible = true
+ChatCanvas.Parent = RightArea
+canvases[1] = ChatCanvas
+
+for i = 2, 5 do
+    local Scroll = Instance.new("ScrollingFrame")
+    Scroll.Size = UDim2.new(1, -20, 1, -42)
+    Scroll.Position = UDim2.new(0, 10, 0, 38)
+    Scroll.BackgroundTransparency = 1
+    Scroll.BorderSizePixel = 0
+    Scroll.ScrollBarThickness = 2
+    Scroll.ScrollBarImageColor3 = THEME.Accent
+    Scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Scroll.Visible = false
+    Scroll.Parent = RightArea
+
+    local List = Instance.new("UIListLayout")
+    List.Padding = UDim.new(0, 7)
+    List.SortOrder = Enum.SortOrder.LayoutOrder
+    List.Parent = Scroll
+
+    local Pad = Instance.new("UIPadding")
+    Pad.PaddingBottom = UDim.new(0, 10)
+    Pad.Parent = Scroll
+
+    canvases[i] = Scroll
+end
+
+local BotCanvas = canvases[2]
+local ShaderCanvas = canvases[3]
+local ActionCanvas = canvases[4]
+local SystemCanvas = canvases[5]
+
+local function selectTab(index)
+    PageTitle.Text = tabConfigs[index].title
+    for i = 1, 5 do
+        canvases[i].Visible = (i == index)
+        TweenService:Create(navButtons[i], TweenInfo.new(0.18), {
+            BackgroundColor3 = (i == index) and THEME.Accent or THEME.Sidebar,
+            BackgroundTransparency = (i == index) and 0 or 1,
+            TextColor3 = (i == index) and Color3.fromRGB(255, 255, 255) or THEME.SubText
+        }):Play()
+    end
+end
+
+-- Tombol Khusus "General" di Paling Atas Sidebar yang Memunculkan Popup
+local GeneralBtn = Instance.new("TextButton")
+GeneralBtn.Size = UDim2.new(1, 0, 0, 26)
+GeneralBtn.BackgroundColor3 = THEME.Card
+GeneralBtn.Text = "  General [Popup]"
+GeneralBtn.TextColor3 = THEME.Green
+GeneralBtn.Font = Enum.Font.GothamBold
+GeneralBtn.TextSize = 11
+GeneralBtn.TextXAlignment = Enum.TextXAlignment.Left
+GeneralBtn.LayoutOrder = 0
+GeneralBtn.Parent = NavContainer
+
+local GenCorner = Instance.new("UICorner")
+GenCorner.CornerRadius = UDim.new(0, 7)
+GenCorner.Parent = GeneralBtn
+
+GeneralBtn.MouseButton1Click:Connect(function()
+    populatePlayerChips()
+    toggleGeneralPopup(not GeneralPopup.Visible)
+end)
+
+for i, info in ipairs(tabConfigs) do
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 26)
+    Btn.BackgroundColor3 = (i == 1) and THEME.Accent or THEME.Sidebar
+    Btn.BackgroundTransparency = (i == 1) and 0 or 1
+    Btn.Text = "  " .. info.name
+    Btn.TextColor3 = (i == 1) and Color3.fromRGB(255, 255, 255) or THEME.SubText
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.TextSize = 11
+    Btn.TextXAlignment = Enum.TextXAlignment.Left
+    Btn.LayoutOrder = i
+    Btn.Parent = NavContainer
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 7)
+    Corner.Parent = Btn
+
+    Btn.MouseButton1Click:Connect(function()
+        selectTab(i)
+    end)
+    navButtons[i] = Btn
+end
+
+-- ==========================================
+-- FLOATING POPUP PILL (MINIMIZE)
+-- ==========================================
+local FloatingPill = Instance.new("Frame")
+FloatingPill.Name = "MonyalFloatingPill"
+FloatingPill.Size = UDim2.new(0, 124, 0, 36)
+FloatingPill.Position = UDim2.new(0.05, 0, 0.2, 0)
+FloatingPill.BackgroundColor3 = THEME.Bg
+FloatingPill.BorderSizePixel = 0
+FloatingPill.Visible = false
+FloatingPill.Parent = ScreenGui
+
+local FloatScale = Instance.new("UIScale")
+FloatScale.Scale = 1
+FloatScale.Parent = FloatingPill
+
+local FloatCorner = Instance.new("UICorner")
+FloatCorner.CornerRadius = UDim.new(1, 0)
+FloatCorner.Parent = FloatingPill
+
+local FloatStroke = Instance.new("UIStroke")
+FloatStroke.Color = THEME.Stroke
+FloatStroke.Thickness = 1.4
+FloatStroke.Parent = FloatingPill
+
+local FloatDot = Instance.new("Frame")
+FloatDot.Size = UDim2.new(0, 8, 0, 8)
+FloatDot.Position = UDim2.new(0, 14, 0.5, -4)
+FloatDot.BackgroundColor3 = THEME.Green
+FloatDot.BorderSizePixel = 0
+FloatDot.Parent = FloatingPill
+
+local FloatDotCorner = Instance.new("UICorner")
+FloatDotCorner.CornerRadius = UDim.new(1, 0)
+FloatDotCorner.Parent = FloatDot
+
+local FloatLabel = Instance.new("TextLabel")
+FloatLabel.Size = UDim2.new(1, -28, 1, 0)
+FloatLabel.Position = UDim2.new(0, 26, 0, 0)
+FloatLabel.BackgroundTransparency = 1
+FloatLabel.Text = "MONYAL AI"
+FloatLabel.TextColor3 = THEME.Text
+FloatLabel.Font = Enum.Font.GothamBold
+FloatLabel.TextSize = 11
+FloatLabel.TextXAlignment = Enum.TextXAlignment.Left
+FloatLabel.Parent = FloatingPill
+
+local FloatHitbox = Instance.new("TextButton")
+FloatHitbox.Size = UDim2.new(1, 0, 1, 0)
+FloatHitbox.BackgroundTransparency = 1
+FloatHitbox.Text = ""
+FloatHitbox.Parent = FloatingPill
+
+local isMaximized = false
+createTrafficLight(THEME.Red, 14, function()
+    CONFIG.ENABLED = false
+    GENERAL_STATE.HoldHands = false
+    GENERAL_STATE.Piggyback = false
+    toggleFlyMode(false)
+    local outTween = TweenService:Create(MainScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0.01})
+    outTween:Play()
+    outTween.Completed:Connect(function()
+        ScreenGui:Destroy()
+    end)
+end)
+
+createTrafficLight(THEME.Yellow, 33, function()
+    local minTween = TweenService:Create(MainScale, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0.01})
+    minTween:Play()
+    minTween.Completed:Connect(function()
+        MainFrame.Visible = false
+        FloatingPill.Visible = true
+        FloatScale.Scale = 0.2
+        TweenService:Create(FloatScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+createTrafficLight(THEME.Green, 52, function()
+    isMaximized = not isMaximized
+    local targetW = isMaximized and 620 or CONFIG.WIN_WIDTH
+    local targetH = isMaximized and 365 or CONFIG.WIN_HEIGHT
+    TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, targetW, 0, targetH)
+    }):Play()
+end)
+
+makeDraggable(Sidebar, MainFrame, nil)
+makeDraggable(TopBar, MainFrame, nil)
+makeDraggable(FloatHitbox, FloatingPill, function()
+    local hideFloat = TweenService:Create(FloatScale, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Scale = 0.2})
+    hideFloat:Play()
+    hideFloat.Completed:Connect(function()
+        FloatingPill.Visible = false
+        MainFrame.Visible = true
+        MainScale.Scale = 0.85
+        TweenService:Create(MainScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    end)
+end)
+
+-- ==========================================
+-- PEMBERSIH MARKDOWN & EMOJI DARI JAWABAN AI
+-- ==========================================
+local function cleanAIText(rawText)
+    if not rawText then return "" end
+    local text = rawText:gsub("<think>.-</think>", "")
+    text = text:gsub("%*%*", "")
+    text = text:gsub("%*", "")
+    text = text:gsub("###%s*", "")
+    text = text:gsub("##%s*", "")
+    text = text:gsub("#%s*", "")
+    text = text:gsub("`", "")
+    text = text:gsub("\n>%s*", "\n")
+    text = text:gsub("^>%s*", "")
+    text = text:gsub("[\128-\255]", "")
+    text = text:gsub("  +", " ")
+    return text:match("^%s*(.-)%s*$") or ""
+end
+
+local function sendRobloxChat(msg)
+    msg = cleanAIText(msg):gsub("[\r\n]+", " ")
+    if not msg or msg == "" then return end
+
+    local chunks = {}
+    for i = 1, #msg, 190 do
+        table.insert(chunks, msg:sub(i, i + 189))
+    end
+
+    for _, chunk in ipairs(chunks) do
+        if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+            local textChannels = TextChatService:FindFirstChild("TextChannels")
+            local generalChannel = textChannels and textChannels:FindFirstChild("RBXGeneral")
+            if generalChannel then
+                generalChannel:SendAsync(chunk)
+            end
+        else
+            local defaultChat = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+            local sayMessage = defaultChat and defaultChat:FindFirstChild("SayMessageRequest")
+            if sayMessage then
+                sayMessage:FireServer(chunk, "All")
+            end
+        end
+        task.wait(0.75)
+    end
+end
+
+-- ==========================================
+-- KOMPONEN UI BUILDER (NO EMOJI)
+-- ==========================================
+local function addSectionHeader(parentCanvas, titleText, order)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, 0, 0, 14)
+    Label.BackgroundTransparency = 1
+    Label.Text = titleText:upper()
+    Label.TextColor3 = THEME.SubText
+    Label.Font = Enum.Font.GothamBold
+    Label.TextSize = 9
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.LayoutOrder = order
+    Label.Parent = parentCanvas
+end
+
+local function addToggle(parentCanvas, title, desc, defaultVal, order, callback)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(1, 0, 0, 42)
+    Card.BackgroundColor3 = THEME.Card
+    Card.BorderSizePixel = 0
+    Card.LayoutOrder = order
+    Card.Parent = parentCanvas
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 10)
+    Corner.Parent = Card
+
+    local TLabel = Instance.new("TextLabel")
+    TLabel.Size = UDim2.new(1, -60, 0, 17)
+    TLabel.Position = UDim2.new(0, 10, 0, 5)
+    TLabel.BackgroundTransparency = 1
+    TLabel.Text = title
+    TLabel.TextColor3 = THEME.Text
+    TLabel.Font = Enum.Font.GothamSemibold
+    TLabel.TextSize = 11
+    TLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TLabel.Parent = Card
+
+    local DLabel = Instance.new("TextLabel")
+    DLabel.Size = UDim2.new(1, -60, 0, 13)
+    DLabel.Position = UDim2.new(0, 10, 0, 22)
+    DLabel.BackgroundTransparency = 1
+    DLabel.Text = desc
+    DLabel.TextColor3 = THEME.SubText
+    DLabel.Font = Enum.Font.Gotham
+    DLabel.TextSize = 9
+    DLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DLabel.Parent = Card
+
+    local Switch = Instance.new("TextButton")
+    Switch.Size = UDim2.new(0, 38, 0, 22)
+    Switch.Position = UDim2.new(1, -48, 0.5, -11)
+    Switch.BackgroundColor3 = defaultVal and THEME.Green or THEME.Input
+    Switch.Text = ""
+    Switch.AutoButtonColor = false
+    Switch.Parent = Card
+
+    local SCorner = Instance.new("UICorner")
+    SCorner.CornerRadius = UDim.new(1, 0)
+    SCorner.Parent = Switch
+
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.new(0, 16, 0, 16)
+    Knob.Position = defaultVal and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+    Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.BorderSizePixel = 0
+    Knob.Parent = Switch
+
+    local KCorner = Instance.new("UICorner")
+    KCorner.CornerRadius = UDim.new(1, 0)
+    KCorner.Parent = Knob
+
+    local state = defaultVal
+    Switch.MouseButton1Click:Connect(function()
+        state = not state
+        TweenService:Create(Switch, TweenInfo.new(0.18), {
+            BackgroundColor3 = state and THEME.Green or THEME.Input
+        }):Play()
+        TweenService:Create(Knob, TweenInfo.new(0.18, Enum.EasingStyle.Quint), {
+            Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        }):Play()
+        callback(state)
+    end)
+end
+
+local function addInput(parentCanvas, title, defaultVal, height, multiline, order, onBlur)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(1, 0, 0, height)
+    Card.BackgroundColor3 = THEME.Card
+    Card.BorderSizePixel = 0
+    Card.LayoutOrder = order
+    Card.Parent = parentCanvas
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 10)
+    Corner.Parent = Card
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -20, 0, 14)
+    Label.Position = UDim2.new(0, 10, 0, 5)
+    Label.BackgroundTransparency = 1
+    Label.Text = title
+    Label.TextColor3 = THEME.SubText
+    Label.Font = Enum.Font.GothamSemibold
+    Label.TextSize = 10
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Card
+
+    local Box = Instance.new("TextBox")
+    Box.Size = UDim2.new(1, -20, 1, -24)
+    Box.Position = UDim2.new(0, 10, 0, 20)
+    Box.BackgroundColor3 = THEME.Input
+    Box.Text = defaultVal
+    Box.TextColor3 = THEME.Text
+    Box.Font = Enum.Font.Gotham
+    Box.TextSize = 11
+    Box.TextXAlignment = Enum.TextXAlignment.Left
+    Box.TextYAlignment = multiline and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
+    Box.TextWrapped = multiline
+    Box.MultiLine = multiline
+    Box.ClearTextOnFocus = false
+    Box.Parent = Card
+
+    local BCorner = Instance.new("UICorner")
+    BCorner.CornerRadius = UDim.new(0, 7)
+    BCorner.Parent = Box
+
+    local Pad = Instance.new("UIPadding")
+    Pad.PaddingLeft = UDim.new(0, 8)
+    Pad.PaddingRight = UDim.new(0, 8)
+    Pad.PaddingTop = UDim.new(0, multiline and 5 or 0)
+    Pad.Parent = Box
+
+    Box.FocusLost:Connect(function()
+        onBlur(Box.Text)
+    end)
+
+    return Box
+end
+
+local function addActionButton(parentCanvas, text, bgColor, order, onClick)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 32)
+    Btn.BackgroundColor3 = bgColor
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 11
+    Btn.LayoutOrder = order
+    Btn.Parent = parentCanvas
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 9)
+    Corner.Parent = Btn
+
+    Btn.MouseButton1Click:Connect(onClick)
+    return Btn
+end
+
+-- ==========================================
+-- TAB 1: CHAT PRIVAT DI UI (LANDSCAPE)
+-- ==========================================
+local ChatScroll = Instance.new("ScrollingFrame")
+ChatScroll.Size = UDim2.new(1, 0, 1, -66)
+ChatScroll.Position = UDim2.new(0, 0, 0, 0)
+ChatScroll.BackgroundColor3 = THEME.Input
+ChatScroll.BorderSizePixel = 0
+ChatScroll.ScrollBarThickness = 2
+ChatScroll.ScrollBarImageColor3 = THEME.Accent
+ChatScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ChatScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+ChatScroll.Parent = ChatCanvas
+
+local ChatScrollCorner = Instance.new("UICorner")
+ChatScrollCorner.CornerRadius = UDim.new(0, 10)
+ChatScrollCorner.Parent = ChatScroll
+
+local ChatPad = Instance.new("UIPadding")
+ChatPad.PaddingTop = UDim.new(0, 8)
+ChatPad.PaddingBottom = UDim.new(0, 8)
+ChatPad.PaddingLeft = UDim.new(0, 8)
+ChatPad.PaddingRight = UDim.new(0, 8)
+ChatPad.Parent = ChatScroll
+
+local ChatList = Instance.new("UIListLayout")
+ChatList.Padding = UDim.new(0, 7)
+ChatList.SortOrder = Enum.SortOrder.LayoutOrder
+ChatList.Parent = ChatScroll
+
+local msgCount = 0
+local function addChatBubble(senderType, textContent)
+    msgCount += 1
+    local isUser = (senderType == "user")
+
+    local Row = Instance.new("Frame")
+    Row.Size = UDim2.new(1, 0, 0, 0)
+    Row.AutomaticSize = Enum.AutomaticSize.Y
+    Row.BackgroundTransparency = 1
+    Row.LayoutOrder = msgCount
+    Row.Parent = ChatScroll
+
+    local Bubble = Instance.new("Frame")
+    Bubble.Size = UDim2.new(0.82, 0, 0, 0)
+    Bubble.AutomaticSize = Enum.AutomaticSize.Y
+    Bubble.Position = isUser and UDim2.new(0.18, 0, 0, 0) or UDim2.new(0, 0, 0, 0)
+    Bubble.BackgroundColor3 = isUser and THEME.UserBubble or THEME.BotBubble
+    Bubble.BorderSizePixel = 0
+    Bubble.Parent = Row
+
+    local BCorner = Instance.new("UICorner")
+    BCorner.CornerRadius = UDim.new(0, 11)
+    BCorner.Parent = Bubble
+
+    local BPad = Instance.new("UIPadding")
+    BPad.PaddingTop = UDim.new(0, 6)
+    BPad.PaddingBottom = UDim.new(0, 6)
+    BPad.PaddingLeft = UDim.new(0, 9)
+    BPad.PaddingRight = UDim.new(0, 9)
+    BPad.Parent = Bubble
+
+    local HeaderTag = Instance.new("TextLabel")
+    HeaderTag.Size = UDim2.new(1, -45, 0, 12)
+    HeaderTag.BackgroundTransparency = 1
+    HeaderTag.Text = isUser and "KAMU" or "MONYAL AI"
+    HeaderTag.TextColor3 = isUser and Color3.fromRGB(219, 234, 254) or THEME.Accent
+    HeaderTag.Font = Enum.Font.GothamBold
+    HeaderTag.TextSize = 9
+    HeaderTag.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderTag.Parent = Bubble
+
+    local BodyText = Instance.new("TextLabel")
+    BodyText.Size = UDim2.new(1, 0, 0, 0)
+    BodyText.Position = UDim2.new(0, 0, 0, 14)
+    BodyText.AutomaticSize = Enum.AutomaticSize.Y
+    BodyText.BackgroundTransparency = 1
+    BodyText.Text = textContent
+    BodyText.TextColor3 = THEME.Text
+    BodyText.Font = Enum.Font.Gotham
+    BodyText.TextSize = 11
+    BodyText.TextWrapped = true
+    BodyText.TextXAlignment = Enum.TextXAlignment.Left
+    BodyText.Parent = Bubble
+
+    if not isUser then
+        local ShareBtn = Instance.new("TextButton")
+        ShareBtn.Size = UDim2.new(0, 42, 0, 14)
+        ShareBtn.Position = UDim2.new(1, -42, 0, -1)
+        ShareBtn.BackgroundColor3 = THEME.Card
+        ShareBtn.Text = "Kirim"
+        ShareBtn.TextColor3 = THEME.SubText
+        ShareBtn.Font = Enum.Font.GothamBold
+        ShareBtn.TextSize = 8
+        ShareBtn.Parent = Bubble
+
+        local SCorner = Instance.new("UICorner")
+        SCorner.CornerRadius = UDim.new(0, 4)
+        SCorner.Parent = ShareBtn
+
+        ShareBtn.MouseButton1Click:Connect(function()
+            sendRobloxChat(BodyText.Text)
+            setStatus("Terkirim ke server", THEME.Green)
+        end)
+    end
+
+    task.defer(function()
+        ChatScroll.CanvasPosition = Vector2.new(0, ChatScroll.AbsoluteCanvasSize.Y + 300)
+    end)
+
+    return BodyText
+end
+
+local QuickBar = Instance.new("ScrollingFrame")
+QuickBar.Size = UDim2.new(1, 0, 0, 22)
+QuickBar.Position = UDim2.new(0, 0, 1, -61)
+QuickBar.BackgroundTransparency = 1
+QuickBar.BorderSizePixel = 0
+QuickBar.ScrollBarThickness = 0
+QuickBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+QuickBar.CanvasSize = UDim2.new(0, 0, 0, 0)
+QuickBar.Parent = ChatCanvas
+
+local QuickLayout = Instance.new("UIListLayout")
+QuickLayout.FillDirection = Enum.FillDirection.Horizontal
+QuickLayout.Padding = UDim.new(0, 5)
+QuickLayout.Parent = QuickBar
+
+local InputBar = Instance.new("Frame")
+InputBar.Size = UDim2.new(1, 0, 0, 34)
+InputBar.Position = UDim2.new(0, 0, 1, -34)
+InputBar.BackgroundColor3 = THEME.Card
+InputBar.BorderSizePixel = 0
+InputBar.Parent = ChatCanvas
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 10)
+InputCorner.Parent = InputBar
+
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Size = UDim2.new(0, 44, 0, 26)
+ClearBtn.Position = UDim2.new(0, 4, 0.5, -13)
+ClearBtn.BackgroundColor3 = THEME.Input
+ClearBtn.Text = "Hapus"
+ClearBtn.TextColor3 = THEME.SubText
+ClearBtn.Font = Enum.Font.GothamBold
+ClearBtn.TextSize = 9
+ClearBtn.Parent = InputBar
+
+local ClearCorner = Instance.new("UICorner")
+ClearCorner.CornerRadius = UDim.new(0, 7)
+ClearCorner.Parent = ClearBtn
+
+local ChatBox = Instance.new("TextBox")
+ChatBox.Size = UDim2.new(1, -104, 1, -6)
+ChatBox.Position = UDim2.new(0, 54, 0, 3)
+ChatBox.BackgroundTransparency = 1
+ChatBox.PlaceholderText = "Tanya atau bercanda dengan Monyal AI..."
+ChatBox.PlaceholderColor3 = THEME.SubText
+ChatBox.Text = ""
+ChatBox.TextColor3 = THEME.Text
+ChatBox.Font = Enum.Font.Gotham
+ChatBox.TextSize = 11
+ChatBox.TextXAlignment = Enum.TextXAlignment.Left
+ChatBox.ClearTextOnFocus = false
+ChatBox.Parent = InputBar
+
+local SendBtn = Instance.new("TextButton")
+SendBtn.Size = UDim2.new(0, 44, 0, 26)
+SendBtn.Position = UDim2.new(1, -48, 0.5, -13)
+SendBtn.BackgroundColor3 = THEME.Accent
+SendBtn.Text = "Kirim"
+SendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SendBtn.Font = Enum.Font.GothamBold
+SendBtn.TextSize = 10
+SendBtn.Parent = InputBar
+
+local SendCorner = Instance.new("UICorner")
+SendCorner.CornerRadius = UDim.new(0, 7)
+SendCorner.Parent = SendBtn
+
+-- ==========================================
+-- API CALLER & LOGIKA CHAT PRIVAT
+-- ==========================================
+local publicHistory = { { role = "system", content = CONFIG.PUBLIC_PROMPT } }
+local privateHistory = { { role = "system", content = CONFIG.PRIVATE_PROMPT } }
+
+local function callOpenRouter(historyTable, maxTokens)
+    local payload = HttpService:JSONEncode({
+        model = CONFIG.MODEL,
+        messages = historyTable,
+        temperature = CONFIG.TEMPERATURE,
+        max_tokens = maxTokens or 900
+    })
+
+    local success, response = pcall(function()
+        return httpRequest({
+            Url = "https://openrouter.ai/api/v1/chat/completions",
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json",
+                ["Authorization"] = "Bearer " .. CONFIG.API_KEY,
+                ["HTTP-Referer"] = "https://www.roblox.com",
+                ["X-Title"] = "MONYAL AI Roblox"
+            },
+            Body = payload
+        })
+    end)
+
+    if success and response and response.StatusCode == 200 then
+        local decoded = HttpService:JSONDecode(response.Body)
+        local reply = decoded.choices and decoded.choices[1] and decoded.choices[1].message and decoded.choices[1].message.content
+        if reply and reply ~= "" then
+            return true, cleanAIText(reply)
+        end
+        return false, "Respon kosong"
+    else
+        local status = response and response.StatusCode or "Err"
+        return false, "API Error (" .. tostring(status) .. ")"
+    end
+end
+
+local isPrivateBusy = false
+local function askMonyalPrivate(customText)
+    if isPrivateBusy then return end
+    local question = customText or ChatBox.Text:match("^%s*(.-)%s*$")
+    if not question or question == "" then return end
+
+    if not customText then ChatBox.Text = "" end
+
+    isPrivateBusy = true
+    addChatBubble("user", question)
+    local typingLabel = addChatBubble("bot", "Sedang meracik jawaban...")
+    setStatus("Berpikir...", THEME.Accent)
+
+    table.insert(privateHistory, { role = "user", content = question })
+    while #privateHistory > (CONFIG.MAX_HISTORY + 1) do
+        table.remove(privateHistory, 2)
+    end
+
+    task.spawn(function()
+        local ok, result = callOpenRouter(privateHistory, 1000)
+        if ok then
+            table.insert(privateHistory, { role = "assistant", content = result })
+            typingLabel.Text = result
+            setStatus("Siap", THEME.Green)
+        else
+            typingLabel.Text = "Gagal: " .. tostring(result)
+            typingLabel.TextColor3 = THEME.Red
+            setStatus("Error API", THEME.Red)
+        end
+
+        task.defer(function()
+            ChatScroll.CanvasPosition = Vector2.new(0, ChatScroll.AbsoluteCanvasSize.Y + 300)
+        end)
+        isPrivateBusy = false
+    end)
+end
+
+local quickPrompts = {
+    {label = "Tebak-tebakan", prompt = "Kasih 1 tebak-tebakan bapak-bapak yang super receh beserta jawabannya tanpa emoji."},
+    {label = "Roasting Aku", prompt = "Roasting aku secara lucu dan santai sebagai pemain Roblox tanpa emoji."},
+    {label = "Fakta Aneh", prompt = "Kasih 1 fakta dunia yang aneh tapi nyata dengan gaya bercanda tanpa emoji."},
+    {label = "Pantun Kocak", prompt = "Buatkan 1 pantun jenaka tentang main game Roblox tanpa emoji."}
+}
+
+for _, item in ipairs(quickPrompts) do
+    local Chip = Instance.new("TextButton")
+    Chip.Size = UDim2.new(0, 92, 1, 0)
+    Chip.BackgroundColor3 = THEME.Card
+    Chip.Text = item.label
+    Chip.TextColor3 = THEME.Text
+    Chip.Font = Enum.Font.GothamMedium
+    Chip.TextSize = 10
+    Chip.Parent = QuickBar
+
+    local CCorner = Instance.new("UICorner")
+    CCorner.CornerRadius = UDim.new(1, 0)
+    CCorner.Parent = Chip
+
+    Chip.MouseButton1Click:Connect(function()
+        askMonyalPrivate(item.prompt)
+    end)
+end
+
+SendBtn.MouseButton1Click:Connect(function() askMonyalPrivate(nil) end)
+ChatBox.FocusLost:Connect(function(enter) if enter then askMonyalPrivate(nil) end end)
+ClearBtn.MouseButton1Click:Connect(function()
+    for _, c in ipairs(ChatScroll:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+    privateHistory = { { role = "system", content = CONFIG.PRIVATE_PROMPT } }
+    addChatBubble("bot", "Riwayat chat bersih. Mau bercanda atau tanya apa lagi?")
+    setStatus("Chat dihapus", THEME.Green)
+end)
+
+addChatBubble("bot", "Halo bosku! Aku MONYAL AI. Klik menu General di sidebar kiri atas kalau mau membuka popup gandeng tangan, terbang bebas, dan ghost mode.")
+
+-- ==========================================
+-- TAB 2: BOT CHAT SERVER
+-- ==========================================
+addSectionHeader(BotCanvas, "Kontrol Bot Server", 1)
+
+addToggle(BotCanvas, "Aktifkan Bot Chat Publik", "Membalas chat pemain di server otomatis", CONFIG.ENABLED, 2, function(val)
+    CONFIG.ENABLED = val
+    local c = val and THEME.Green or THEME.Red
+    StatusDot.BackgroundColor3 = c
+    FloatDot.BackgroundColor3 = c
+    setStatus(val and "Bot Aktif" or "Bot Mati", c)
+end)
+
+addToggle(BotCanvas, "Mode Tanpa Prefix", "Balas semua chat di server tanpa harus ketik prefix", CONFIG.NO_PREFIX_MODE, 3, function(val)
+    CONFIG.NO_PREFIX_MODE = val
+end)
+
+addToggle(BotCanvas, "Self-Test Mode", "Chat dari akunmu sendiri ikut dibalas bot", CONFIG.ALLOW_SELF, 4, function(val)
+    CONFIG.ALLOW_SELF = val
+end)
+
+addInput(BotCanvas, "Prefix Pemicu Chat", CONFIG.PREFIX, 48, false, 5, function(val)
+    if val ~= "" then CONFIG.PREFIX = val end
+end)
+
+addInput(BotCanvas, "Cooldown Balasan (Detik)", tostring(CONFIG.COOLDOWN), 48, false, 6, function(val)
+    local n = tonumber(val)
+    if n and n >= 1 then CONFIG.COOLDOWN = n end
+end)
+
+local promptBoxRef = addInput(BotCanvas, "Kepribadian Bot (System Prompt)", CONFIG.PUBLIC_PROMPT, 70, true, 7, function(val)
+    if val ~= "" then
+        CONFIG.PUBLIC_PROMPT = val
+        publicHistory[1] = { role = "system", content = val }
+    end
+end)
+
+addSectionHeader(BotCanvas, "Preset Kepribadian Instan", 8)
+
+local presets = {
+    {name = "Lucu & Receh (Default)", prompt = "Kamu adalah MONYAL AI, bot lucu, receh, suka bercanda, dan santai di dalam game Roblox. Jawab langsung dengan teks polos tanpa emoji dan tanpa markdown, maksimal 2 kalimat."},
+    {name = "Tukang Roasting Halus", prompt = "Kamu adalah MONYAL AI, bot tukang roasting kocak di Roblox. Jawab setiap pertanyaan dengan candaan sarkas yang lucu tanpa kata kasar, tanpa emoji, dan tanpa markdown, maksimal 2 kalimat."},
+    {name = "Anak Jaksel Gaul", prompt = "Kamu adalah MONYAL AI, bot anak Jaksel yang suka campur bahasa Indonesia dan Inggris secara lucu di Roblox. Tanpa emoji dan tanpa markdown, maksimal 2 kalimat."},
+    {name = "Tsundere Kocak", prompt = "Kamu adalah MONYAL AI dengan sifat tsundere lucu (pura-pura jual mahal tapi peduli) di Roblox. Tanpa emoji dan tanpa markdown, maksimal 2 kalimat."}
+}
+
+for idx, p in ipairs(presets) do
+    addActionButton(BotCanvas, p.name, THEME.Card, 8 + idx, function()
+        CONFIG.PUBLIC_PROMPT = p.prompt
+        CONFIG.PRIVATE_PROMPT = p.prompt
+        publicHistory[1] = { role = "system", content = p.prompt }
+        privateHistory[1] = { role = "system", content = p.prompt }
+        promptBoxRef.Text = p.prompt
+        setStatus("Preset diterapkan", THEME.Green)
+    end)
+end
+
+-- ==========================================
+-- TAB 3: SHADER & VISUAL WORKSPACE MAP
+-- ==========================================
+local function getOrCreateEffect(className, name)
+    local existing = Lighting:FindFirstChild(name)
+    if existing and existing:IsA(className) then
+        return existing
+    end
+    local inst = Instance.new(className)
+    inst.Name = name
+    inst.Parent = Lighting
+    return inst
+end
+
+local function applyMapShader(presetName)
+    local bloom = getOrCreateEffect("BloomEffect", "Monyal_Bloom")
+    local cc = getOrCreateEffect("ColorCorrectionEffect", "Monyal_CC")
+    local sunRays = getOrCreateEffect("SunRaysEffect", "Monyal_SunRays")
+    local dof = getOrCreateEffect("DepthOfFieldEffect", "Monyal_DOF")
+
+    if presetName == "Default" then
+        bloom.Enabled = false
+        cc.Enabled = false
+        sunRays.Enabled = false
+        dof.Enabled = false
+        Lighting.Brightness = 2
+        Lighting.Ambient = Color3.fromRGB(127, 127, 127)
+        Lighting.OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+        Lighting.FogEnd = 100000
+    elseif presetName == "RTX Glossy" then
+        bloom.Enabled = true
+        bloom.Intensity = 0.65
+        bloom.Size = 24
+        bloom.Threshold = 0.95
+
+        cc.Enabled = true
+        cc.Brightness = 0.04
+        cc.Contrast = 0.22
+        cc.Saturation = 0.25
+        cc.TintColor = Color3.fromRGB(255, 250, 244)
+
+        sunRays.Enabled = true
+        sunRays.Intensity = 0.18
+        sunRays.Spread = 0.7
+
+        dof.Enabled = true
+        dof.FarIntensity = 0.12
+        dof.FocusDistance = 45
+        dof.InFocusRadius = 35
+
+        Lighting.Brightness = 2.8
+        Lighting.ClockTime = 16.5
+        Lighting.Ambient = Color3.fromRGB(95, 100, 115)
+        Lighting.OutdoorAmbient = Color3.fromRGB(145, 140, 135)
+    elseif presetName == "Golden Sunset" then
+        bloom.Enabled = true
+        bloom.Intensity = 0.8
+        bloom.Size = 30
+        bloom.Threshold = 0.85
+
+        cc.Enabled = true
+        cc.Brightness = 0.03
+        cc.Contrast = 0.18
+        cc.Saturation = 0.35
+        cc.TintColor = Color3.fromRGB(255, 210, 165)
+
+        sunRays.Enabled = true
+        sunRays.Intensity = 0.28
+        sunRays.Spread = 0.85
+        dof.Enabled = false
+
+        Lighting.Brightness = 2.4
+        Lighting.ClockTime = 17.8
+        Lighting.Ambient = Color3.fromRGB(120, 85, 70)
+    elseif presetName == "Cyberpunk Night" then
+        bloom.Enabled = true
+        bloom.Intensity = 1.1
+        bloom.Size = 28
+        bloom.Threshold = 0.75
+
+        cc.Enabled = true
+        cc.Brightness = -0.02
+        cc.Contrast = 0.3
+        cc.Saturation = 0.45
+        cc.TintColor = Color3.fromRGB(205, 185, 255)
+
+        sunRays.Enabled = false
+        dof.Enabled = false
+
+        Lighting.Brightness = 1.4
+        Lighting.ClockTime = 22.5
+        Lighting.Ambient = Color3.fromRGB(70, 55, 120)
+        Lighting.OutdoorAmbient = Color3.fromRGB(80, 70, 130)
+    elseif presetName == "Anime Vibrant" then
+        bloom.Enabled = true
+        bloom.Intensity = 0.45
+        bloom.Size = 20
+        bloom.Threshold = 1.0
+
+        cc.Enabled = true
+        cc.Brightness = 0.06
+        cc.Contrast = 0.15
+        cc.Saturation = 0.5
+        cc.TintColor = Color3.fromRGB(245, 252, 255)
+
+        sunRays.Enabled = true
+        sunRays.Intensity = 0.12
+        sunRays.Spread = 0.75
+        dof.Enabled = false
+
+        Lighting.Brightness = 2.6
+        Lighting.ClockTime = 13.5
+        Lighting.Ambient = Color3.fromRGB(135, 145, 160)
+    elseif presetName == "Horror Fog" then
+        bloom.Enabled = false
+        sunRays.Enabled = false
+        dof.Enabled = true
+        dof.FarIntensity = 0.35
+        dof.FocusDistance = 20
+
+        cc.Enabled = true
+        cc.Brightness = -0.08
+        cc.Contrast = 0.25
+        cc.Saturation = -0.45
+        cc.TintColor = Color3.fromRGB(195, 210, 215)
+
+        Lighting.Brightness = 0.8
+        Lighting.ClockTime = 1.5
+        Lighting.FogColor = Color3.fromRGB(35, 40, 45)
+        Lighting.FogStart = 15
+        Lighting.FogEnd = 160
+    end
+
+    setStatus("Shader: " .. presetName, THEME.Green)
+end
+
+addSectionHeader(ShaderCanvas, "Preset Shader Workspace Map", 1)
+
+local shaderList = {
+    {name = "RTX Ultra Glossy (Cinematic)", preset = "RTX Glossy", color = THEME.Accent},
+    {name = "Golden Sunset (Sore Hangat)", preset = "Golden Sunset", color = THEME.Card},
+    {name = "Anime Vibrant (Cerah Warna)", preset = "Anime Vibrant", color = THEME.Card},
+    {name = "Cyberpunk Neon (Malam Ungu)", preset = "Cyberpunk Night", color = THEME.Card},
+    {name = "Horror Fog (Kabut Gelap)", preset = "Horror Fog", color = THEME.Card},
+    {name = "Reset Shader ke Default Map", preset = "Default", color = THEME.Red}
+}
+
+for idx, sh in ipairs(shaderList) do
+    addActionButton(ShaderCanvas, sh.name, sh.color, 1 + idx, function()
+        applyMapShader(sh.preset)
+    end)
+end
+
+addSectionHeader(ShaderCanvas, "Pengaturan Pencahayaan & Kamera", 8)
+
+addInput(ShaderCanvas, "Waktu Map / ClockTime (0 - 24)", tostring(math.floor(Lighting.ClockTime)), 48, false, 9, function(val)
+    local num = tonumber(val)
+    if num and num >= 0 and num <= 24 then
+        Lighting.ClockTime = num
+        setStatus("Jam map diatur ke " .. num, THEME.Accent)
+    end
+end)
+
+addInput(ShaderCanvas, "Tingkat Kecerahan / Brightness (0 - 10)", tostring(Lighting.Brightness), 48, false, 10, function(val)
+    local num = tonumber(val)
+    if num and num >= 0 and num <= 10 then
+        Lighting.Brightness = num
+        setStatus("Brightness diatur ke " .. num, THEME.Accent)
+    end
+end)
+
+addInput(ShaderCanvas, "Field of View / FOV Kamera (30 - 120)", tostring(Camera and math.floor(Camera.FieldOfView) or 70), 48, false, 11, function(val)
+    local num = tonumber(val)
+    if num and num >= 30 and num <= 120 and workspace.CurrentCamera then
+        workspace.CurrentCamera.FieldOfView = num
+        setStatus("FOV diatur ke " .. num, THEME.Accent)
+    end
+end)
+
+-- ==========================================
+-- TAB 4: AKSI OTOMATIS BOT
+-- ==========================================
+local currentTargetPlayer = nil
+
+addSectionHeader(ActionCanvas, "Perilaku Otomatis Bot", 1)
+
+addToggle(ActionCanvas, "Auto-Follow Penanya", "Karakter berjalan mendekati penanya", CONFIG.AUTO_FOLLOW, 2, function(val)
+    CONFIG.AUTO_FOLLOW = val
+    if not val then currentTargetPlayer = nil end
+end)
+
+addToggle(ActionCanvas, "Orbit / Putari Penanya", "Berputar mengelilingi penanya saat aktif", CONFIG.ORBIT_TARGET, 3, function(val)
+    CONFIG.ORBIT_TARGET = val
+end)
+
+addToggle(ActionCanvas, "Auto-Jump Saat Membalas", "Melompat setiap kali mengirim balasan", CONFIG.AUTO_JUMP, 4, function(val)
+    CONFIG.AUTO_JUMP = val
+end)
+
+addToggle(ActionCanvas, "Auto-Emote (/e dance)", "Berjoget otomatis setelah membalas chat", CONFIG.AUTO_EMOTE, 5, function(val)
+    CONFIG.AUTO_EMOTE = val
+end)
+
+addToggle(ActionCanvas, "Anti-AFK Otomatis", "Mencegah kick 20 menit saat ditinggal AFK", CONFIG.ANTI_AFK, 6, function(val)
+    CONFIG.ANTI_AFK = val
+end)
+
+addActionButton(ActionCanvas, "Buka Popup General (Gandeng & Terbang)", THEME.Accent, 7, function()
+    populatePlayerChips()
+    toggleGeneralPopup(true)
+end)
+
+local orbitAngle = 0
+RunService.Heartbeat:Connect(function(dt)
+    if currentTargetPlayer and currentTargetPlayer.Character and LocalPlayer.Character then
+        local targetRoot = currentTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local myRoot = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local myHum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+
+        if targetRoot and myRoot and myHum then
+            if CONFIG.ORBIT_TARGET then
+                orbitAngle += dt * 3
+                local offset = Vector3.new(math.cos(orbitAngle) * 5, 0, math.sin(orbitAngle) * 5)
+                myHum:MoveTo(targetRoot.Position + offset)
+            elseif CONFIG.AUTO_FOLLOW then
+                local dist = (targetRoot.Position - myRoot.Position).Magnitude
+                if dist > 4.5 then
+                    myHum:MoveTo(targetRoot.Position)
+                end
+            end
+        end
+    end
+end)
+
+LocalPlayer.Idled:Connect(function()
+    if CONFIG.ANTI_AFK then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
+
+-- ==========================================
+-- TAB 5: TAMPILAN (RESIZE WINDOW) & API SISTEM
+-- ==========================================
+local widthInputRef, heightInputRef
+
+local function resizeMainWindow(newW, newH)
+    newW = math.clamp(newW, 420, 820)
+    newH = math.clamp(newH, 260, 560)
+    CONFIG.WIN_WIDTH = newW
+    CONFIG.WIN_HEIGHT = newH
+    if widthInputRef then widthInputRef.Text = tostring(newW) end
+    if heightInputRef then heightInputRef.Text = tostring(newH) end
+
+    TweenService:Create(MainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, newW, 0, newH)
+    }):Play()
+    setStatus("Ukuran: " .. newW .. "x" .. newH, THEME.Green)
+end
+
+addSectionHeader(SystemCanvas, "Ukuran Window GUI (Landscape)", 1)
+
+addActionButton(SystemCanvas, "Ukuran Compact (460 x 285)", THEME.Card, 2, function()
+    resizeMainWindow(460, 285)
+end)
+
+addActionButton(SystemCanvas, "Ukuran Normal / Default (530 x 325)", THEME.Accent, 3, function()
+    resizeMainWindow(530, 325)
+end)
+
+addActionButton(SystemCanvas, "Ukuran Wide / Besar (640 x 380)", THEME.Card, 4, function()
+    resizeMainWindow(640, 380)
+end)
+
+widthInputRef = addInput(SystemCanvas, "Custom Lebar / Width (420 - 820)", tostring(CONFIG.WIN_WIDTH), 48, false, 5, function(val)
+    local n = tonumber(val)
+    if n then resizeMainWindow(n, CONFIG.WIN_HEIGHT) end
+end)
+
+heightInputRef = addInput(SystemCanvas, "Custom Tinggi / Height (260 - 560)", tostring(CONFIG.WIN_HEIGHT), 48, false, 6, function(val)
+    local n = tonumber(val)
+    if n then resizeMainWindow(CONFIG.WIN_WIDTH, n) end
+end)
+
+addSectionHeader(SystemCanvas, "Konfigurasi Model & OpenRouter API", 7)
+
+local modelBoxRef = addInput(SystemCanvas, "Model AI OpenRouter", CONFIG.MODEL, 48, false, 8, function(val)
+    if val ~= "" then
+        CONFIG.MODEL = val
+        setStatus("Model diubah", THEME.Green)
+    end
+end)
+
+addInput(SystemCanvas, "API Key OpenRouter", CONFIG.API_KEY, 48, false, 9, function(val)
+    if val ~= "" then
+        CONFIG.API_KEY = val
+        setStatus("API Key diperbarui", THEME.Green)
+    end
+end)
+
+local quickModels = {
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
+    "deepseek/deepseek-chat-v3-0324:free"
+}
+
+for idx, modName in ipairs(quickModels) do
+    addActionButton(SystemCanvas, "Model: " .. modName, THEME.Card, 9 + idx, function()
+        CONFIG.MODEL = modName
+        modelBoxRef.Text = modName
+        setStatus("Model diganti", THEME.Green)
+    end)
+end
+
+addActionButton(SystemCanvas, "Reset Semua Memori Percakapan", THEME.Red, 15, function()
+    publicHistory = { { role = "system", content = CONFIG.PUBLIC_PROMPT } }
+    privateHistory = { { role = "system", content = CONFIG.PRIVATE_PROMPT } }
+    setStatus("Memori di-reset", THEME.Green)
+end)
+
+-- ==========================================
+-- LISTENER CHAT PUBLIK ROBLOX
+-- ==========================================
+local isPublicBusy = false
+local lastReplyTime = 0
+
+local function handlePublicMessage(player, message)
+    if not CONFIG.ENABLED or not player or isPublicBusy then return end
+    if player == LocalPlayer and not CONFIG.ALLOW_SELF then return end
+    if tick() - lastReplyTime < CONFIG.COOLDOWN then return end
+
+    local question = nil
+    if CONFIG.NO_PREFIX_MODE then
+        question = message:match("^%s*(.-)%s*$")
+    else
+        local pLen = #CONFIG.PREFIX
+        if message:sub(1, pLen):lower() == CONFIG.PREFIX:lower() then
+            question = message:sub(pLen + 1):match("^%s*(.-)%s*$")
+        end
+    end
+
+    if not question or question == "" then return end
+
+    isPublicBusy = true
+    currentTargetPlayer = (player ~= LocalPlayer) and player or currentTargetPlayer
+    setStatus("Membalas " .. player.DisplayName, THEME.Accent)
+
+    table.insert(publicHistory, {
+        role = "user",
+        content = player.DisplayName .. ": " .. question
+    })
+    while #publicHistory > (CONFIG.MAX_HISTORY + 1) do
+        table.remove(publicHistory, 2)
+    end
+
+    task.spawn(function()
+        local ok, reply = callOpenRouter(publicHistory, 600)
+        if ok then
+            table.insert(publicHistory, { role = "assistant", content = reply })
+            sendRobloxChat(reply)
+            lastReplyTime = tick()
+            setStatus("Siap", THEME.Green)
+
+            if CONFIG.AUTO_JUMP and LocalPlayer.Character then
+                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hum then hum.Jump = true end
+            end
+            if CONFIG.AUTO_EMOTE then
+                task.wait(0.5)
+                sendRobloxChat("/e dance")
+            end
+        else
+            setStatus("Error API", THEME.Red)
+        end
+        isPublicBusy = false
+    end)
+end
+
+if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+    TextChatService.MessageReceived:Connect(function(textChatMessage)
+        if textChatMessage.TextSource then
+            local sender = Players:GetPlayerByUserId(textChatMessage.TextSource.UserId)
+            handlePublicMessage(sender, textChatMessage.Text)
+        end
+    end)
+else
+    for _, player in ipairs(Players:GetPlayers()) do
+        player.Chatted:Connect(function(msg) handlePublicMessage(player, msg) end)
+    end
+    Players.PlayerAdded:Connect(function(player)
+        player.Chatted:Connect(function(msg) handlePublicMessage(player, msg) end)
+    end)
+end
+
+-- ==========================================
+-- ANIMASI SMOOTH SAAT MUNCUL SETELAH LOADING 15s
+-- ==========================================
+TweenService:Create(MainScale, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Scale = 1
+}):Play()
+
+print("[MONYAL AI] 15s Compiler Loading & General Avatar Popup siap digunakan!")
