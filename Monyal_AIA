@@ -2,7 +2,7 @@
 -- KONFIGURASI MONYAL (DELTA EXECUTOR)
 -- ==========================================
 local CONFIG = {
-    API_KEY = "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",
+    API_KEY = "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",
     MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free",
     PREFIX = "!monyal ",
     PUBLIC_PROMPT = "Kamu adalah MONYAL AI, bot lucu, receh, suka bercanda, dan santai di dalam game Roblox. Jawab langsung dengan teks polos tanpa emoji dan tanpa format markdown seperti bintang atau pagar. Maksimal 2 kalimat singkat.",
